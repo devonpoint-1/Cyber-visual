@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>مركز يحيى — محرك الرصد السيبراني المتقدم</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Oswald:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#04070d;--bg2:#080d14;--panel:rgba(10,18,30,0.85);--panel2:rgba(14,24,40,0.9);
+  --cyan:#00e5ff;--cyan2:#80f4ff;--green:#00ff9d;--red:#ff2d4a;--red2:#ff6b7a;
+  --amber:#ffb700;--purple:#a855f7;--blue:#3b7eff;--gold:#ffd700;
+  --txt:#e0eef8;--txt2:#7a9ab5;--txt3:#3d5470;
+  --glow-cyan:0 0 20px rgba(0,229,255,0.4);
+  --glow-red:0 0 20px rgba(255,45,74,0.5);
+  --glow-green:0 0 20px rgba(0,255,157,0.4);
+}
+body{background:var(--bg);color:var(--txt);font-family:'Cairo',sans-serif;overflow-x:hidden;min-height:100vh;}
+
+/* ═══════════════ CANVAS BG ═══════════════ */
+#bgCanvas{position:fixed;inset:0;z-index:0;pointer-events:none;}
+
+/* ═══════════════ SCAN LINE ═══════════════ */
+.scan-line{position:fixed;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,rgba(0,229,255,0.8),rgba(0,229,255,0.4),transparent);z-index:1;pointer-events:none;animation:scanMove 4s linear infinite;box-shadow:0 0 12px rgba(0,229,255,0.6);}
+@keyframes scanMove{0%{top:-2px;opacity:0}5%{opacity:1}95%{opacity:1}100%{top:100vh;opacity:0}}
+
+/* ═══════════════ LAYOUT ═══════════════ */
+#app{position:relative;z-index:2;min-height:100vh;display:flex;flex-direction:column;}
+
+/* ═══════════════ HEADER ═══════════════ */
+header{
+  background:linear-gradient(135deg,rgba(4,10,18,0.97),rgba(8,16,28,0.95));
+  border-bottom:1px solid rgba(0,229,255,0.2);
+  padding:0 20px;height:64px;display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:50;
+  box-shadow:0 4px 30px rgba(0,229,255,0.08);
+  backdrop-filter:blur(20px);
+}
+header::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--cyan),var(--purple),var(--cyan),transparent);}
+.hdr-left{display:flex;align-items:center;gap:14px;}
+.hdr-logo{position:relative;width:42px;height:42px;}
+.hdr-logo svg{width:100%;height:100%;animation:rotateLogo 8s linear infinite;}
+@keyframes rotateLogo{from{filter:drop-shadow(0 0 6px var(--cyan))}50%{filter:drop-shadow(0 0 12px var(--purple))}to{filter:drop-shadow(0 0 6px var(--cyan))}}
+.hdr-title{font-family:'Oswald',sans-serif;font-size:16px;font-weight:700;color:var(--cyan);letter-spacing:.02em;}
+.hdr-sub{font-size:9.5px;color:var(--txt3);letter-spacing:.08em;margin-top:1px;}
+.hdr-metrics{display:flex;gap:16px;}
+.hdr-metric{text-align:center;padding:6px 14px;background:rgba(0,229,255,0.05);border:1px solid rgba(0,229,255,0.15);border-radius:20px;position:relative;overflow:hidden;}
+.hdr-metric::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(0,229,255,0.03),transparent);pointer-events:none;}
+.hm-val{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;}
+.hm-lbl{font-size:9px;color:var(--txt3);margin-top:1px;letter-spacing:.05em;}
+.hdr-clock{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--txt2);text-align:left;}
+.hdr-clock .date{font-size:9px;color:var(--txt3);margin-top:2px;}
+.threat-pill{display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:10.5px;font-family:'Oswald',sans-serif;letter-spacing:.04em;animation:threatPulse 2s ease-in-out infinite;}
+@keyframes threatPulse{0%,100%{box-shadow:0 0 8px currentColor}50%{box-shadow:0 0 20px currentColor}}
+.tpill-dot{width:7px;height:7px;border-radius:50%;animation:dotBlink 1.2s infinite;}
+@keyframes dotBlink{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+
+/* ═══════════════ NAV TABS ═══════════════ */
+nav{background:rgba(4,10,18,0.95);border-bottom:1px solid rgba(0,229,255,0.1);display:flex;padding:0 20px;backdrop-filter:blur(10px);}
+.nav-tab{padding:14px 20px;font-size:12.5px;cursor:pointer;color:var(--txt2);border-bottom:2px solid transparent;transition:.2s;display:flex;align-items:center;gap:7px;white-space:nowrap;position:relative;}
+.nav-tab:hover{color:var(--txt);background:rgba(0,229,255,0.04);}
+.nav-tab.active{color:var(--cyan);border-bottom-color:var(--cyan);}
+.nav-tab.active::after{content:'';position:absolute;bottom:-1px;left:50%;transform:translateX(-50%);width:60%;height:2px;background:var(--cyan);box-shadow:0 0 8px var(--cyan);filter:blur(2px);}
+.tab-icon{font-size:13px;}
+.tab-badge{font-size:9.5px;padding:1px 6px;border-radius:10px;font-weight:700;margin-right:2px;}
+
+/* ═══════════════ MAIN ═══════════════ */
+main{flex:1;padding:20px;overflow-y:auto;}
+.tab-pane{display:none;animation:paneIn .35s ease;}
+.tab-pane.active{display:block;}
+@keyframes paneIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ═══════════════ CARDS ═══════════════ */
+.glass-card{
+  background:linear-gradient(135deg,rgba(14,24,40,0.9),rgba(8,16,28,0.8));
+  border:1px solid rgba(0,229,255,0.15);border-radius:8px;padding:18px;
+  position:relative;overflow:hidden;
+  box-shadow:0 8px 32px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.05);
+  backdrop-filter:blur(10px);
+}
+.glass-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,229,255,0.5),transparent);}
+.glass-card::after{content:'';position:absolute;top:0;left:0;bottom:0;width:1px;background:linear-gradient(180deg,rgba(0,229,255,0.3),transparent);}
+.card-glow-red{border-color:rgba(255,45,74,.3);box-shadow:0 8px 32px rgba(0,0,0,.4),0 0 20px rgba(255,45,74,.1),inset 0 1px 0 rgba(255,255,255,.05);}
+.card-glow-green{border-color:rgba(0,255,157,.25);box-shadow:0 8px 32px rgba(0,0,0,.4),0 0 20px rgba(0,255,157,.08),inset 0 1px 0 rgba(255,255,255,.05);}
+.card-title{font-family:'Oswald',sans-serif;font-size:12px;color:var(--cyan);letter-spacing:.08em;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;}
+.card-title .ct-tag{font-size:9px;color:var(--txt3);font-weight:400;font-family:'Cairo',sans-serif;}
+
+/* ═══════════════ METRIC CARDS ═══════════════ */
+.metrics-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
+@media(max-width:900px){.metrics-grid{grid-template-columns:repeat(2,1fr);}}
+.metric-card{
+  background:linear-gradient(135deg,rgba(14,24,40,0.9),rgba(6,12,22,0.95));
+  border-radius:8px;padding:18px;position:relative;overflow:hidden;
+  border:1px solid rgba(0,229,255,0.12);
+  box-shadow:0 4px 20px rgba(0,0,0,0.5);transition:.3s;
+}
+.metric-card:hover{transform:translateY(-3px);border-color:rgba(0,229,255,0.3);}
+.metric-card::before{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--mc-color,var(--cyan));}
+.metric-card::after{content:'';position:absolute;top:0;right:0;width:60px;height:60px;border-radius:50%;background:radial-gradient(circle,var(--mc-color,var(--cyan))22,transparent 70%);opacity:.15;}
+.mc-icon{font-size:22px;margin-bottom:10px;}
+.mc-val{font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:700;color:var(--mc-color,var(--cyan));line-height:1;}
+.mc-label{font-size:11px;color:var(--txt2);margin-top:5px;}
+.mc-trend{font-size:10px;margin-top:6px;display:flex;align-items:center;gap:4px;}
+
+/* ═══════════════ CHARTS ═══════════════ */
+.charts-row{display:grid;grid-template-columns:1.6fr 1fr;gap:12px;margin-bottom:16px;}
+@media(max-width:900px){.charts-row{grid-template-columns:1fr;}}
+canvas{display:block;max-width:100%;}
+.chart-wrap{position:relative;}
+
+/* ═══════════════ THREATS ═══════════════ */
+.threat-filters{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px;}
+.tf-btn{padding:6px 14px;border-radius:20px;font-size:11.5px;cursor:pointer;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);color:var(--txt2);transition:.2s;}
+.tf-btn.active,.tf-btn:hover{border-color:var(--cyan);color:var(--cyan);background:rgba(0,229,255,.07);}
+.threats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;}
+.threat-card{
+  background:linear-gradient(135deg,rgba(14,24,40,.9),rgba(6,12,22,.95));
+  border-radius:8px;padding:16px;border:1px solid rgba(255,255,255,.08);
+  transition:.25s;cursor:pointer;position:relative;overflow:hidden;
+}
+.threat-card:hover{transform:translateY(-3px);}
+.threat-card.critical{border-color:rgba(255,45,74,.35);box-shadow:0 0 20px rgba(255,45,74,.1);}
+.threat-card.high{border-color:rgba(255,183,0,.3);box-shadow:0 0 15px rgba(255,183,0,.08);}
+.threat-card.medium{border-color:rgba(0,229,255,.2);}
+.threat-pulse{position:absolute;top:14px;left:14px;width:10px;height:10px;border-radius:50%;}
+.threat-pulse::after{content:'';position:absolute;inset:-4px;border-radius:50%;border:2px solid currentColor;animation:pulsRing 1.5s ease-out infinite;opacity:0;}
+@keyframes pulsRing{0%{transform:scale(.7);opacity:.8}100%{transform:scale(1.8);opacity:0}}
+.tc-sev{font-size:9.5px;font-family:'Oswald',sans-serif;letter-spacing:.06em;margin-bottom:8px;margin-right:18px;}
+.tc-name{font-size:13.5px;font-weight:700;margin-bottom:5px;line-height:1.4;}
+.tc-src{font-size:11px;color:var(--txt2);margin-bottom:8px;}
+.tc-ioc{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--txt3);word-break:break-all;}
+.tc-bar{height:3px;background:rgba(255,255,255,.06);border-radius:2px;margin-top:10px;overflow:hidden;}
+.tc-bar i{display:block;height:100%;border-radius:2px;animation:barLoad .8s ease forwards;}
+@keyframes barLoad{from{width:0}}
+.tc-meta{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:10px;color:var(--txt3);}
+
+/* ═══════════════ PREDICTIONS — AI ═══════════════ */
+.ai-header{display:flex;align-items:center;gap:12px;margin-bottom:18px;padding:16px;background:linear-gradient(135deg,rgba(168,85,247,.1),rgba(59,126,255,.06));border:1px solid rgba(168,85,247,.25);border-radius:8px;}
+.ai-orb{width:46px;height:46px;border-radius:50%;background:radial-gradient(circle at 35% 35%,var(--purple),#4f1b8c);box-shadow:0 0 24px rgba(168,85,247,.5);flex-shrink:0;animation:orbPulse 3s ease-in-out infinite;}
+@keyframes orbPulse{0%,100%{box-shadow:0 0 24px rgba(168,85,247,.5)}50%{box-shadow:0 0 40px rgba(168,85,247,.8)}}
+.ai-header-text .ai-name{font-family:'Oswald',sans-serif;font-size:15px;color:var(--purple);}
+.ai-header-text .ai-status{font-size:10.5px;color:var(--txt2);margin-top:2px;}
+.predictions-list{display:flex;flex-direction:column;gap:12px;}
+.pred-card{
+  background:linear-gradient(135deg,rgba(168,85,247,.06),rgba(14,24,40,.9));
+  border:1px solid rgba(168,85,247,.2);border-radius:8px;padding:16px;
+  position:relative;overflow:hidden;
+}
+.pred-card::before{content:'';position:absolute;right:0;top:0;width:3px;height:100%;background:linear-gradient(180deg,var(--purple),transparent);}
+.pred-num{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--purple);margin-bottom:5px;}
+.pred-title{font-size:14px;font-weight:700;margin-bottom:6px;}
+.pred-text{font-size:12px;color:var(--txt2);line-height:1.9;font-family:'JetBrains Mono',monospace;}
+.pred-conf{display:flex;align-items:center;gap:9px;margin-top:10px;}
+.conf-bar{flex:1;height:5px;background:rgba(168,85,247,.15);border-radius:3px;overflow:hidden;}
+.conf-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--purple),var(--blue));animation:barLoad .9s ease forwards;}
+.conf-val{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--purple);font-weight:700;}
+
+/* ═══════════════ NETWORK MAP ═══════════════ */
+#networkSVG{width:100%;height:420px;background:radial-gradient(ellipse at center,rgba(0,229,255,.04),transparent 70%);border-radius:8px;overflow:hidden;}
+.net-node{cursor:pointer;transition:.2s;}
+.net-node:hover .node-circle{filter:brightness(1.4);}
+.node-label{font-family:'JetBrains Mono',monospace;font-size:10px;fill:var(--txt2);}
+.data-packet{animation:packetMove linear infinite;}
+@keyframes packetMove{0%{opacity:0}10%{opacity:1}90%{opacity:1}100%{opacity:0}}
+
+/* ═══════════════ WORLD MAP ═══════════════ */
+.world-map-wrap{position:relative;background:linear-gradient(180deg,rgba(0,20,40,.6),rgba(0,10,20,.4));border-radius:8px;padding:20px;overflow:hidden;}
+.world-svg{width:100%;height:340px;}
+.attack-point{cursor:pointer;}
+.attack-ring{animation:attackRing 2s ease-out infinite;}
+@keyframes attackRing{0%{r:8;opacity:.8}100%{r:22;opacity:0}}
+.map-tooltip{position:absolute;background:rgba(4,10,18,.96);border:1px solid rgba(0,229,255,.3);border-radius:6px;padding:10px 14px;font-size:11.5px;pointer-events:none;min-width:180px;backdrop-filter:blur(10px);display:none;z-index:10;}
+
+/* ═══════════════ RESPONSE CENTER ═══════════════ */
+.response-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px;}
+@media(max-width:900px){.response-grid{grid-template-columns:1fr;}}
+.playbook-card{background:linear-gradient(135deg,rgba(14,24,40,.9),rgba(6,12,22,.95));border:1px solid rgba(0,229,255,.12);border-radius:8px;padding:14px;cursor:pointer;transition:.2s;}
+.playbook-card:hover{border-color:rgba(0,229,255,.35);transform:translateY(-2px);}
+.pb-icon{font-size:22px;margin-bottom:8px;}
+.pb-name{font-size:13px;font-weight:700;margin-bottom:4px;}
+.pb-desc{font-size:11px;color:var(--txt2);line-height:1.75;}
+.pb-steps{font-size:10px;color:var(--txt3);margin-top:6px;}
+.log-wrap{background:rgba(2,5,10,.9);border:1px solid rgba(0,229,255,.1);border-radius:8px;padding:14px;font-family:'JetBrains Mono',monospace;font-size:11px;height:220px;overflow-y:auto;margin-bottom:12px;}
+.log-line{margin-bottom:4px;display:flex;gap:8px;animation:logIn .2s ease;}
+@keyframes logIn{from{opacity:0;transform:translateX(-5px)}to{opacity:1;transform:none}}
+.log-time{color:var(--txt3);flex-shrink:0;}
+.team-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
+@media(max-width:700px){.team-grid{grid-template-columns:repeat(2,1fr);}}
+.team-member{background:linear-gradient(135deg,rgba(14,24,40,.9),rgba(6,12,22,.95));border:1px solid rgba(0,229,255,.12);border-radius:8px;padding:12px;text-align:center;}
+.tm-avatar{width:44px;height:44px;border-radius:50%;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-size:18px;position:relative;}
+.tm-avatar::after{content:'';position:absolute;inset:-2px;border-radius:50%;border:2px solid var(--tm-c,var(--green));animation:avatarGlow 2s ease-in-out infinite;}
+@keyframes avatarGlow{0%,100%{opacity:1}50%{opacity:.4}}
+.tm-name{font-size:11px;font-weight:700;margin-bottom:3px;}
+.tm-role{font-size:9.5px;color:var(--txt2);}
+.tm-status{font-size:9px;margin-top:5px;display:flex;align-items:center;justify-content:center;gap:4px;}
+.tm-dot{width:6px;height:6px;border-radius:50%;}
+
+/* ═══════════════ ALERTS TABLE ═══════════════ */
+.alert-table{width:100%;border-collapse:collapse;font-size:11.5px;}
+.alert-table th{text-align:right;color:var(--txt3);font-weight:500;padding:8px 10px;border-bottom:1px solid rgba(0,229,255,.1);font-size:10.5px;font-family:'Oswald',sans-serif;letter-spacing:.04em;}
+.alert-table td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.04);color:var(--txt2);vertical-align:middle;}
+.alert-table tr:hover td{background:rgba(0,229,255,.03);}
+.sev-badge{font-size:9px;padding:2px 8px;border-radius:10px;font-weight:700;white-space:nowrap;}
+
+/* ═══════════════ MISC ═══════════════ */
+.pbar{height:4px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden;margin-top:4px;}
+.pbar i{display:block;height:100%;border-radius:2px;transition:width .8s ease;}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:800px){.grid-2{grid-template-columns:1fr;}}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+@media(max-width:800px){.grid-3{grid-template-columns:1fr;}}
+.sep{height:1px;background:linear-gradient(90deg,transparent,rgba(0,229,255,.2),transparent);margin:14px 0;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-thumb{background:rgba(0,229,255,.2);border-radius:3px;}
+</style>
+</head>
+<body>
+<canvas id="bgCanvas"></canvas>
+<div class="scan-line"></div>
+<div id="app">
+
+<!-- HEADER -->
+<header>
+  <div class="hdr-left">
+    <div class="hdr-logo">
+      <svg viewBox="0 0 80 80">
+        <circle cx="40" cy="40" r="36" fill="none" stroke="#00e5ff" stroke-width="1.5" opacity=".5"/>
+        <circle cx="40" cy="40" r="28" fill="none" stroke="#00e5ff" stroke-width="1" opacity=".3" stroke-dasharray="3,3"/>
+        <polygon points="40,10 52,34 76,37 57,54 62,78 40,65 18,78 23,54 4,37 28,34" fill="none" stroke="#00e5ff" stroke-width="1.5"/>
+        <circle cx="40" cy="40" r="5" fill="#00e5ff" opacity=".9"/>
+        <circle cx="40" cy="40" r="9" fill="none" stroke="#00e5ff" stroke-width="1" opacity=".4"/>
+      </svg>
+    </div>
+    <div>
+      <div class="hdr-title">مركز يحيى — محرك الرصد السيبراني المتقدم</div>
+      <div class="hdr-sub">YAHYA ADVANCED CYBER INTELLIGENCE & MONITORING ENGINE v3.0</div>
+    </div>
+  </div>
+  <div class="hdr-metrics" id="hdrMetrics"></div>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div class="threat-pill" id="threatPill"></div>
+    <div class="hdr-clock"><div id="clockTime"></div><div class="date" id="clockDate"></div></div>
+  </div>
+</header>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-tab active" data-tab="dashboard"><span class="tab-icon">▣</span> لوحة التحكم <span class="tab-badge" style="background:rgba(255,45,74,.2);color:var(--red2);" id="alertCount">12</span></div>
+  <div class="nav-tab" data-tab="threats"><span class="tab-icon">⚠</span> مركز التهديدات</div>
+  <div class="nav-tab" data-tab="predictions"><span class="tab-icon">◉</span> محرك التنبؤ AI</div>
+  <div class="nav-tab" data-tab="network"><span class="tab-icon">◈</span> خريطة الشبكة</div>
+  <div class="nav-tab" data-tab="worldmap"><span class="tab-icon">🌐</span> الخريطة العالمية</div>
+  <div class="nav-tab" data-tab="response"><span class="tab-icon">⚡</span> مركز الاستجابة</div>
+</nav>
+
+<main>
+
+<!-- ══════ DASHBOARD ══════ -->
+<div class="tab-pane active" id="tab-dashboard">
+  <div class="metrics-grid" id="metricsGrid"></div>
+  <div class="charts-row">
+    <div class="glass-card chart-wrap">
+      <div class="card-title">معدل التهديدات — آخر 12 ساعة <span class="ct-tag">تحديث كل 30 ث</span></div>
+      <canvas id="lineChart" height="160"></canvas>
+    </div>
+    <div class="glass-card chart-wrap">
+      <div class="card-title">توزيع التهديدات <span class="ct-tag">حسب الفئة</span></div>
+      <canvas id="donutChart" height="160"></canvas>
+    </div>
+  </div>
+  <div class="glass-card">
+    <div class="card-title">آخر التنبيهات الحية <span class="ct-tag" id="alertTime">الآن</span></div>
+    <table class="alert-table"><thead><tr><th>المعرّف</th><th>التهديد</th><th>المصدر</th><th>الشدة</th><th>التوقيت</th><th>الحالة</th></tr></thead>
+    <tbody id="alertsTableBody"></tbody></table>
+  </div>
+</div>
+
+<!-- ══════ THREATS ══════ -->
+<div class="tab-pane" id="tab-threats">
+  <div class="threat-filters" id="threatFilters">
+    <div class="tf-btn active" data-sev="all">الكل <span style="color:var(--txt3);">8</span></div>
+    <div class="tf-btn" data-sev="critical">حرج <span style="color:var(--red2);">3</span></div>
+    <div class="tf-btn" data-sev="high">مرتفع <span style="color:var(--amber);">3</span></div>
+    <div class="tf-btn" data-sev="medium">متوسط <span style="color:var(--cyan2);">2</span></div>
+  </div>
+  <div class="threats-grid" id="threatsGrid"></div>
+</div>
+
+<!-- ══════ PREDICTIONS ══════ -->
+<div class="tab-pane" id="tab-predictions">
+  <div class="ai-header">
+    <div class="ai-orb">🧠</div>
+    <div class="ai-header-text">
+      <div class="ai-name">محرك الذكاء الاصطناعي التنبؤي — Deep Neural Analysis</div>
+      <div class="ai-status">✓ نشط — يحلل 2.3 مليون حدث/ثانية — نموذج LSTM v7.2 — دقة 94.7%</div>
+    </div>
+    <div style="margin-right:auto;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--purple);text-align:left;">
+      <div id="aiProcessing">PROCESSING...</div>
+      <div style="font-size:9px;color:var(--txt3);margin-top:2px;">Threat Pattern Recognition Active</div>
+    </div>
+  </div>
+  <div class="predictions-list" id="predictionsList"></div>
+</div>
+
+<!-- ══════ NETWORK ══════ -->
+<div class="tab-pane" id="tab-network">
+  <div class="grid-2" style="margin-bottom:12px;">
+    <div class="glass-card"><div class="card-title">إحصائيات الشبكة الحية</div><div id="netStats"></div></div>
+    <div class="glass-card"><div class="card-title">حالة العقد الحرجة</div><div id="nodeStatus"></div></div>
+  </div>
+  <div class="glass-card" style="padding:0;overflow:hidden;">
+    <div style="padding:14px 16px;border-bottom:1px solid rgba(0,229,255,.1);display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-family:'Oswald',sans-serif;font-size:12px;color:var(--cyan);letter-spacing:.06em;">خريطة الشبكة التفاعلية — حزم البيانات الحية</div>
+      <div style="font-size:10px;color:var(--txt3);" id="packetCount">0 حزمة/ث</div>
+    </div>
+    <svg id="networkSVG" viewBox="0 0 800 420"></svg>
+  </div>
+</div>
+
+<!-- ══════ WORLD MAP ══════ -->
+<div class="tab-pane" id="tab-worldmap">
+  <div class="grid-3" style="margin-bottom:12px;">
+    <div class="glass-card"><div class="card-title">مصادر الهجمات</div><div id="attackSources"></div></div>
+    <div class="glass-card"><div class="card-title">الأهداف المستهدفة</div><div id="attackTargets"></div></div>
+    <div class="glass-card"><div class="card-title">بروتوكولات الهجوم</div><div id="attackProtocols"></div></div>
+  </div>
+  <div class="glass-card world-map-wrap">
+    <div class="card-title">الخريطة العالمية للتهديدات — نبضات حية</div>
+    <div style="position:relative;">
+      <svg class="world-svg" viewBox="0 0 900 440" id="worldSVG"></svg>
+      <div class="map-tooltip" id="mapTooltip"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ RESPONSE ══════ -->
+<div class="tab-pane" id="tab-response">
+  <div class="response-grid" id="responsePlaybooks"></div>
+  <div class="grid-2">
+    <div>
+      <div class="glass-card" style="padding:14px;margin-bottom:12px;">
+        <div class="card-title">سجل العمليات المباشر <span class="ct-tag" id="logCount">0 حدث</span></div>
+        <div class="log-wrap" id="liveLog"></div>
+      </div>
+    </div>
+    <div class="glass-card">
+      <div class="card-title">فريق الاستجابة الفوري</div>
+      <div class="team-grid" id="teamGrid"></div>
+      <div class="sep"></div>
+      <div class="glass-card card-glow-green" style="padding:12px;margin-top:0;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-size:12px;font-weight:700;color:var(--green);">محاكاة هجوم حي</span>
+          <button id="simAttackBtn" style="padding:6px 14px;background:rgba(255,45,74,.1);border:1px solid var(--red);border-radius:20px;color:var(--red2);cursor:pointer;font-family:'Cairo',sans-serif;font-size:11.5px;">▶ تشغيل</button>
+        </div>
+        <div id="simProgress" style="font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--txt2);line-height:1.8;min-height:80px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════
+   YAHYA CYBER INTELLIGENCE ENGINE — Full JS
+══════════════════════════════════════════════ */
+
+/* ─── Canvas Particles ─── */
+(function(){
+  var c=document.getElementById('bgCanvas'),ctx=c.getContext('2d');
+  function resize(){c.width=window.innerWidth;c.height=window.innerHeight;}
+  resize();window.addEventListener('resize',resize);
+  var particles=[];
+  for(var i=0;i<50;i++) particles.push({
+    x:Math.random()*window.innerWidth,y:Math.random()*window.innerHeight,
+    vx:(Math.random()-.5)*.4,vy:(Math.random()-.5)*.4,
+    r:Math.random()*2+.5,
+    color:['rgba(0,229,255,','rgba(168,85,247,','rgba(0,255,157,','rgba(59,126,255,'][Math.floor(Math.random()*4)],
+    alpha:Math.random()*.6+.1
+  });
+  var connections=[];
+  function draw(){
+    ctx.fillStyle='rgba(4,7,13,.15)';ctx.fillRect(0,0,c.width,c.height);
+    particles.forEach(function(p,i){
+      p.x+=p.vx;p.y+=p.vy;
+      if(p.x<0||p.x>c.width)p.vx*=-1;
+      if(p.y<0||p.y>c.height)p.vy*=-1;
+      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle=p.color+p.alpha+')';ctx.fill();
+      for(var j=i+1;j<particles.length;j++){
+        var dx=particles[j].x-p.x,dy=particles[j].y-p.y,d=Math.sqrt(dx*dx+dy*dy);
+        if(d<120){ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(particles[j].x,particles[j].y);
+          ctx.strokeStyle=p.color+((.12*(1-d/120)).toFixed(3))+')';ctx.lineWidth=.5;ctx.stroke();}
+      }
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+/* ─── Clock ─── */
+function updateClock(){
+  var n=new Date();
+  var ct=document.getElementById('clockTime');
+  var cd=document.getElementById('clockDate');
+  if(ct)ct.textContent=n.toLocaleTimeString('ar-EG');
+  if(cd)cd.textContent=n.toLocaleDateString('ar-EG',{weekday:'short',year:'numeric',month:'short',day:'numeric'});
+}
+updateClock();setInterval(updateClock,1000);
+
+/* ─── Data ─── */
+var METRICS=[
+  {icon:'⚠',val:'2,847',label:'تهديدات مكتشفة اليوم',trend:'+12% من أمس',tc:'#ff2d4a',up:true},
+  {icon:'⊘',val:'1,293',label:'هجمات محتجزة',trend:'+8% نسبة الاحتجاز',tc:'#00ff9d',up:true},
+  {icon:'◈',val:'34',label:'حوادث نشطة الآن',trend:'3 حرجة تحت المراقبة',tc:'#ffb700',up:false},
+  {icon:'◉',val:'99.7%',label:'نسبة الكشف الكلية',trend:'أعلى مستوى هذا الشهر',tc:'#00e5ff',up:true}
+];
+var THREATS=[
+  {id:'THR-001',name:'APT-41 — حملة Cobalt Strike v4.9',src:'193.27.14.8 (Tor Exit)',sev:'critical',cat:'malware',ioc:'SHA256: 9c8b7a6f5e4d3c2b',progress:94,time:'منذ 3 دقائق',status:'نشط',vector:'C2 Beaconing — malleable profile'},
+  {id:'THR-002',name:'Golden Ticket Attack على AD',src:'CORP\\DC-PROD-01',sev:'critical',cat:'credential',ioc:'krbtgt NTLM: 32ed87bdb5fdc5e9',progress:87,time:'منذ 7 دقائق',status:'قيد التحقيق',vector:'Mimikatz — DCSync replication'},
+  {id:'THR-003',name:'Industroyer2 على SCADA',src:'OT Network — IEC 61850',sev:'critical',cat:'ics',ioc:'DNP3 Flood + GOOSE anomaly',progress:91,time:'منذ 12 دقيقة',status:'محتجز',vector:'PLC Code Injection'},
+  {id:'THR-004',name:'LockBit 3.0 Ransomware',src:'192.168.47.0/24',sev:'high',cat:'ransomware',ioc:'Extension: .lockbit3 — 2.3TB/hr',progress:72,time:'منذ 18 دقيقة',status:'يُعالَج',vector:'SMBv3 Lateral Spread'},
+  {id:'THR-005',name:'DNS Tunneling — C2 Exfil',src:'dga-c2.xyz (DGA)',sev:'high',cat:'c2',ioc:'TXT records 847% spike',progress:65,time:'منذ 25 دقيقة',status:'مراقَب',vector:'DNS-over-HTTPS bypass'},
+  {id:'THR-006',name:'Pass-the-Hash — SMBv3',src:'WS-CORP-047 → DC',sev:'high',cat:'lateral',ioc:'NTLM relay — 47 nodes',progress:78,time:'منذ 31 دقيقة',status:'محتجز',vector:'Impacket secretsdump'},
+  {id:'THR-007',name:'CVE-2024-3400 Exploitation',src:'45.33.32.156',sev:'medium',cat:'exploit',ioc:'PAN-OS GlobalProtect RCE',progress:45,time:'منذ 44 دقيقة',status:'مراقَب',vector:'Command Injection CVSS 10.0'},
+  {id:'THR-008',name:'LSASS Memory Dump',src:'WS-CORP-012',sev:'medium',cat:'credential',ioc:'PID 4872 — procdump.exe',progress:51,time:'منذ 52 دقيقة',status:'محتجز',vector:'SeDebugPrivilege abuse'}
+];
+var SEV_META={critical:{c:'#ff2d4a',l:'حرج'},high:{c:'#ffb700',l:'مرتفع'},medium:{c:'#00e5ff',l:'متوسط'},low:{c:'#3b7eff',l:'منخفض'}};
+var PREDICTIONS=[
+  {num:'PRED-01',title:'هجوم APT منسق على البنية التحتية خلال 72-96 ساعة',text:'',full:'استناداً لتحليل 2.3M حدث، نمط Beaconing الحالي، وزيادة نشاط APT-41 عالمياً — يُرجَّح هجوم منسق على SCADA أو شبكة الطاقة خلال 72-96 ساعة. الثقة: 89.3%. التوصية: تفعيل Air-Gap فوري + رفع مستوى التأهب.',conf:89},
+  {num:'PRED-02',title:'حملة Spear-Phishing ضد القطاع المالي هذا الأسبوع',text:'',full:'تحليل Dark Web + OSINT: مجموعة Lazarus رصدها Threat Intel في 3 منتديات. تستهدف البنوك الإقليمية. IoC: مجالات تُقلد SWIFT وبوابات البنوك. التوصية: تحديث قواعد Email Gateway فوراً.',conf:84},
+  {num:'PRED-03',title:'ثغرة Zero-Day في بروتوكول شائع — الكشف قريب',text:'',full:'نشاط غير مألوف في Honeypots يُشير لاستكشاف ثغرة في بروتوكول SMB أو RDP. تم رصد 3 PoC مشفرة في Telegram channels. التوصية: تقييد SMB خارجياً + تفعيل Network Behavioral Analytics.',conf:76},
+  {num:'PRED-04',title:'محاولة اختراق Supply Chain عبر مورد طرف ثالث',text:'',full:'4 من موردينا الـ 12 لم يطبقوا Patch Tuesday الأخير. TPRM analysis يُشير لثغرات في بيئاتهم. التوصية: مراجعة Third-Party API keys + تدقيق صلاحيات Vendors فوراً.',conf:71},
+  {num:'PRED-05',title:'موجة DDoS HTTP/2 Rapid Reset — الأسبوع القادم',text:'',full:'بيانات Honeypot + BGP monitoring تُشير لتجمع Botnet بقدرة تقديرية 180M req/sec. الهدف المحتمل: خدمات حكومية رقمية. التوصية: تفعيل DDoS mitigation CDN + rate limiting.',conf:67}
+];
+var ALERTS=[
+  {id:'ALT-4892',threat:'Cobalt Strike C2',src:'193.27.14.8:443',sev:'critical',time:'00:03',status:'نشط'},
+  {id:'ALT-4891',threat:'Golden Ticket Attack',src:'DC-PROD-01',sev:'critical',time:'00:07',status:'تحقيق'},
+  {id:'ALT-4890',threat:'SCADA Anomaly IEC61850',src:'OT-ZONE-03',sev:'critical',time:'00:12',status:'محتجز'},
+  {id:'ALT-4889',threat:'LockBit 3.0 Spread',src:'192.168.47.x',sev:'high',time:'00:18',status:'يُعالَج'},
+  {id:'ALT-4888',threat:'DNS Tunneling DGA',src:'dga-c2.xyz',sev:'high',time:'00:25',status:'مراقَب'},
+  {id:'ALT-4887',threat:'Pass-the-Hash SMB',src:'WS-047',sev:'high',time:'00:31',status:'محتجز'},
+  {id:'ALT-4886',threat:'CVE-2024-3400 Exploit',src:'45.33.32.156',sev:'medium',time:'00:44',status:'مراقَب'},
+  {id:'ALT-4885',threat:'LSASS Dump Attempt',src:'WS-012',sev:'medium',time:'00:52',status:'محتجز'}
+];
+var PLAYBOOKS=[
+  {icon:'⚡',name:'استجابة Ransomware',desc:'بروتوكول احتواء وعزل فوري — NIST SP 800-61',steps:'8 خطوات — وقت التنفيذ: 15 دقيقة'},
+  {icon:'🔒',name:'Golden Ticket Mitigation',desc:'إعادة تعيين krbtgt + تدقيق AD',steps:'5 خطوات — وقت التنفيذ: 40 دقيقة'},
+  {icon:'🛡',name:'SCADA Emergency Isolation',desc:'Air-Gap + Manual Override + SIS',steps:'6 خطوات — وقت التنفيذ: 8 دقائق'},
+  {icon:'🔍',name:'Digital Forensics Launch',desc:'Order of Volatility — ISO 27037',steps:'10 خطوات — وقت التنفيذ: 2 ساعة'},
+  {icon:'🌐',name:'C2 Sinkhole Operation',desc:'DNS Sinkhole + BGP Blackhole + IOC Block',steps:'7 خطوات — وقت التنفيذ: 20 دقيقة'}
+];
+var TEAM=[
+  {name:'أحمد محمد',role:'قائد الفريق',status:'متاح',sc:'#00ff9d',icon:'👨‍💻'},
+  {name:'سارة علي',role:'محللة SIEM',status:'مشغول',sc:'#ffb700',icon:'👩‍💻'},
+  {name:'خالد أحمد',role:'خبير Forensics',status:'متاح',sc:'#00ff9d',icon:'🔬'},
+  {name:'مريم حسن',role:'مستشارة قانونية',status:'متاح',sc:'#00ff9d',icon:'⚖'},
+  {name:'عمر يوسف',role:'مهندس SCADA',status:'طوارئ',sc:'#ff2d4a',icon:'⚙'}
+];
+
+/* ─── Header Metrics ─── */
+(function(){
+  var hm=document.getElementById('hdrMetrics');
+  [{val:'2,847',lbl:'تهديد اليوم',c:'#ff2d4a'},{val:'99.7%',lbl:'نسبة الكشف',c:'#00ff9d'},{val:'34',lbl:'حادثة نشطة',c:'#ffb700'},{val:'4.3s',lbl:'وقت الاستجابة',c:'#00e5ff'}].forEach(function(m){
+    var d=document.createElement('div');d.className='hdr-metric';
+    d.innerHTML='<div class="hm-val" style="color:'+m.c+'">'+m.val+'</div><div class="hm-lbl">'+m.lbl+'</div>';
+    hm.appendChild(d);
+  });
+  var tp=document.getElementById('threatPill');
+  tp.style.cssText='background:rgba(255,45,74,.1);border:1px solid rgba(255,45,74,.4);color:#ff6b7a;';
+  tp.innerHTML='<span class="tpill-dot" style="background:#ff2d4a;"></span> THREAT LEVEL: CRITICAL';
+})();
+
+/* ─── Metrics Grid ─── */
+(function(){
+  var g=document.getElementById('metricsGrid');
+  METRICS.forEach(function(m){
+    var d=document.createElement('div');d.className='metric-card';d.style.setProperty('--mc-color',m.tc);
+    d.innerHTML='<div class="mc-icon">'+m.icon+'</div><div class="mc-val">'+m.val+'</div><div class="mc-label">'+m.label+'</div><div class="mc-trend" style="color:'+(m.up?'#00ff9d':'#ff6b7a')+'"><span>'+(m.up?'↑':'↓')+'</span>'+m.trend+'</div>';
+    g.appendChild(d);
+  });
+})();
+
+/* ─── Line Chart ─── */
+(function(){
+  var c=document.getElementById('lineChart');var ctx=c.getContext('2d');
+  c.width=c.parentElement.offsetWidth-36;c.height=160;
+  var data=[120,189,145,267,198,312,278,421,356,489,412,534];
+  var w=c.width,h=c.height,pad=20;
+  var max=Math.max.apply(null,data)+50,min=0;
+  var sx=function(i){return pad+(i/(data.length-1))*(w-pad*2);};
+  var sy=function(v){return h-pad-(v-min)/(max-min)*(h-pad*2);};
+  // gradient fill
+  var grad=ctx.createLinearGradient(0,0,0,h);
+  grad.addColorStop(0,'rgba(0,229,255,0.2)');grad.addColorStop(1,'rgba(0,229,255,0)');
+  ctx.beginPath();ctx.moveTo(sx(0),sy(data[0]));
+  data.forEach(function(v,i){if(i>0)ctx.lineTo(sx(i),sy(v));});
+  ctx.lineTo(sx(data.length-1),h-pad);ctx.lineTo(sx(0),h-pad);ctx.closePath();
+  ctx.fillStyle=grad;ctx.fill();
+  // line
+  ctx.beginPath();ctx.moveTo(sx(0),sy(data[0]));
+  data.forEach(function(v,i){if(i>0)ctx.lineTo(sx(i),sy(v));});
+  ctx.strokeStyle='#00e5ff';ctx.lineWidth=2;ctx.shadowBlur=8;ctx.shadowColor='#00e5ff';ctx.stroke();ctx.shadowBlur=0;
+  // dots
+  data.forEach(function(v,i){
+    ctx.beginPath();ctx.arc(sx(i),sy(v),3,0,Math.PI*2);
+    ctx.fillStyle='#00e5ff';ctx.shadowBlur=8;ctx.shadowColor='#00e5ff';ctx.fill();ctx.shadowBlur=0;
+  });
+  // labels
+  ctx.fillStyle='rgba(122,154,181,0.6)';ctx.font='9px JetBrains Mono';ctx.textAlign='center';
+  ['12AM','2','4','6','8','10','12PM','2','4','6','8','10P','12'].forEach(function(l,i){ctx.fillText(l,sx(i),h-4);});
+})();
+
+/* ─── Donut Chart ─── */
+(function(){
+  var c=document.getElementById('donutChart');var ctx=c.getContext('2d');
+  c.width=c.parentElement.offsetWidth-36;c.height=160;
+  var cx=c.width/2,cy=c.height/2,r=62,ir=42;
+  var segs=[{v:35,c:'#ff2d4a',l:'Malware'},{v:25,c:'#ffb700',l:'Credential'},{v:20,c:'#00e5ff',l:'Exploit'},{v:12,c:'#a855f7',l:'C2'},{v:8,c:'#00ff9d',l:'Other'}];
+  var total=segs.reduce(function(a,s){return a+s.v;},0),angle=-Math.PI/2;
+  segs.forEach(function(s){
+    var sa=angle,ea=angle+(s.v/total)*Math.PI*2;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,r,sa,ea);ctx.closePath();
+    ctx.fillStyle=s.c;ctx.shadowBlur=10;ctx.shadowColor=s.c;ctx.fill();ctx.shadowBlur=0;
+    angle=ea;
+  });
+  ctx.beginPath();ctx.arc(cx,cy,ir,0,Math.PI*2);ctx.fillStyle='#04070d';ctx.fill();
+  ctx.font='bold 13px JetBrains Mono';ctx.fillStyle='#00e5ff';ctx.textAlign='center';ctx.fillText('2847',cx,cy+4);
+  ctx.font='8px Cairo';ctx.fillStyle='rgba(122,154,181,.7)';ctx.fillText('تهديد',cx,cy+15);
+  // legend
+  var lx=c.width-90,ly=20;
+  segs.forEach(function(s){
+    ctx.fillStyle=s.c;ctx.fillRect(lx,ly,8,8);
+    ctx.fillStyle='rgba(122,154,181,.8)';ctx.font='9px Cairo';ctx.textAlign='right';ctx.fillText(s.l+' '+s.v+'%',c.width-8,ly+7);
+    ly+=16;
+  });
+})();
+
+/* ─── Alerts Table ─── */
+(function(){
+  var tb=document.getElementById('alertsTableBody');
+  ALERTS.forEach(function(a){
+    var sm=SEV_META[a.sev]||SEV_META.medium;
+    var statusC=a.status==='نشط'?'#ff2d4a':a.status==='محتجز'?'#00ff9d':a.status==='تحقيق'?'#a855f7':'#ffb700';
+    var tr=document.createElement('tr');
+    tr.innerHTML='<td style="font-family:\'JetBrains Mono\',monospace;font-size:10.5px;color:var(--txt3);">'+a.id+'</td>'+
+      '<td style="font-weight:600">'+a.threat+'</td>'+
+      '<td style="font-family:\'JetBrains Mono\',monospace;font-size:10.5px;color:var(--txt3);">'+a.src+'</td>'+
+      '<td><span class="sev-badge" style="color:'+sm.c+';background:'+sm.c+'18;border:1px solid '+sm.c+'44">'+sm.l+'</span></td>'+
+      '<td style="font-family:\'JetBrains Mono\',monospace;font-size:10px;color:var(--txt3);">'+a.time+'</td>'+
+      '<td style="font-size:11px;font-weight:700;color:'+statusC+'">'+a.status+'</td>';
+    tb.appendChild(tr);
+  });
+})();
+
+/* ─── Threats Grid ─── */
+(function(){
+  function render(filter){
+    var g=document.getElementById('threatsGrid');g.innerHTML='';
+    var list=filter==='all'?THREATS:THREATS.filter(function(t){return t.sev===filter;});
+    list.forEach(function(t){
+      var sm=SEV_META[t.sev];var c=document.createElement('div');c.className='threat-card '+t.sev;
+      c.innerHTML='<div class="threat-pulse" style="color:'+sm.c+';background:'+sm.c+';"></div>'+
+        '<div class="tc-sev" style="color:'+sm.c+'">● '+sm.l.toUpperCase()+' — '+t.cat.toUpperCase()+'</div>'+
+        '<div class="tc-name">'+t.name+'</div>'+
+        '<div class="tc-src">📡 '+t.src+'</div>'+
+        '<div class="tc-ioc">🔑 '+t.ioc+'</div>'+
+        '<div class="tc-ioc" style="margin-top:4px;">⚔ '+t.vector+'</div>'+
+        '<div class="tc-bar"><i style="width:'+t.progress+'%;background:'+sm.c+'"></i></div>'+
+        '<div class="tc-meta"><span>'+t.time+'</span><span style="color:'+sm.c+';font-weight:700">'+t.status+'</span></div>';
+      g.appendChild(c);
+    });
+  }
+  render('all');
+  document.querySelectorAll('.tf-btn').forEach(function(b){
+    b.addEventListener('click',function(){
+      document.querySelectorAll('.tf-btn').forEach(function(x){x.classList.remove('active');});
+      b.classList.add('active');render(b.getAttribute('data-sev'));
+    });
+  });
+})();
+
+/* ─── Predictions + Typewriter ─── */
+(function(){
+  var list=document.getElementById('predictionsList');
+  PREDICTIONS.forEach(function(p,i){
+    var d=document.createElement('div');d.className='pred-card';
+    d.innerHTML='<div class="pred-num">'+p.num+' — NEURAL ANALYSIS</div>'+
+      '<div class="pred-title">'+p.title+'</div>'+
+      '<div class="pred-text" id="pt'+i+'"></div>'+
+      '<div class="pred-conf"><div class="conf-bar"><div class="conf-fill" style="width:'+p.conf+'%"></div></div><div class="conf-val">'+p.conf+'%</div></div>';
+    list.appendChild(d);
+    // typewriter
+    var el=document.getElementById('pt'+i);var txt=p.full;var ci=0;
+    setTimeout(function typeIt(){
+      if(ci<txt.length){el.textContent+=txt[ci++];setTimeout(typeIt,12+(i*3));}
+    },i*600+800);
+  });
+  // AI processing text
+  var procs=['ANALYZING PATTERNS...','CROSS-REFERENCING IOCs...','RUNNING LSTM MODEL...','GENERATING PREDICTIONS...','CONFIDENCE SCORING...'];
+  var pi=0;var ap=document.getElementById('aiProcessing');
+  setInterval(function(){if(ap){ap.textContent=procs[pi%procs.length];pi++;}},2000);
+})();
+
+/* ─── Network SVG ─── */
+(function(){
+  var svg=document.getElementById('networkSVG');
+  var NODES=[
+    {id:'fw',x:80,y:210,label:'Firewall',icon:'🛡',c:'#00e5ff',status:'critical'},
+    {id:'dc',x:220,y:90,label:'Domain Controller',icon:'🖥',c:'#ffb700',status:'high'},
+    {id:'web',x:220,y:330,label:'Web Server',icon:'🌐',c:'#00e5ff',status:'ok'},
+    {id:'db',x:400,y:150,label:'Database',icon:'💾',c:'#a855f7',status:'ok'},
+    {id:'ot',x:400,y:280,label:'SCADA/OT',icon:'⚙',c:'#ff2d4a',status:'critical'},
+    {id:'siem',x:570,y:90,label:'SIEM',icon:'◈',c:'#00ff9d',status:'ok'},
+    {id:'edr',x:570,y:210,label:'EDR',icon:'🔒',c:'#00ff9d',status:'ok'},
+    {id:'cloud',x:570,y:330,label:'Cloud',icon:'☁',c:'#3b7eff',status:'ok'},
+    {id:'attacker',x:720,y:150,label:'APT-41',icon:'💀',c:'#ff2d4a',status:'critical',isAttacker:true},
+    {id:'c2',x:720,y:280,label:'C2 Server',icon:'⚡',c:'#ff2d4a',status:'critical',isAttacker:true}
+  ];
+  var EDGES=[
+    {from:'fw',to:'dc'},{from:'fw',to:'web'},{from:'dc',to:'db'},{from:'dc',to:'siem'},{from:'dc',to:'edr'},
+    {from:'web',to:'db'},{from:'ot',to:'fw'},{from:'edr',to:'siem'},{from:'cloud',to:'edr'},
+    {from:'attacker',to:'fw',attack:true},{from:'attacker',to:'dc',attack:true},{from:'c2',to:'ot',attack:true},
+    {from:'c2',to:'db',attack:true},{from:'attacker',to:'c2',attack:true}
+  ];
+  // draw edges
+  EDGES.forEach(function(e){
+    var f=NODES.find(function(n){return n.id===e.from;});
+    var t=NODES.find(function(n){return n.id===e.to;});
+    if(!f||!t)return;
+    var line=document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',f.x);line.setAttribute('y1',f.y);line.setAttribute('x2',t.x);line.setAttribute('y2',t.y);
+    line.setAttribute('stroke',e.attack?'rgba(255,45,74,0.4)':'rgba(0,229,255,0.15)');
+    line.setAttribute('stroke-width',e.attack?'1.5':'1');
+    if(e.attack)line.setAttribute('stroke-dasharray','6,4');
+    svg.appendChild(line);
+  });
+  // draw nodes
+  NODES.forEach(function(n){
+    var g=document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('transform','translate('+n.x+','+n.y+')');g.setAttribute('class','net-node');
+    var isAtk=n.isAttacker;var r=isAtk?22:20;
+    // pulse ring for critical
+    if(n.status==='critical'){
+      var ring=document.createElementNS('http://www.w3.org/2000/svg','circle');
+      ring.setAttribute('r',r+10);ring.setAttribute('fill','none');
+      ring.setAttribute('stroke',n.c);ring.setAttribute('stroke-width','1.5');ring.setAttribute('opacity','0');
+      ring.innerHTML='<animate attributeName="r" from="'+r+'" to="'+(r+16)+'" dur="1.5s" repeatCount="indefinite"/><animate attributeName="opacity" from=".7" to="0" dur="1.5s" repeatCount="indefinite"/>';
+      g.appendChild(ring);
+    }
+    // main circle
+    var circ=document.createElementNS('http://www.w3.org/2000/svg','circle');
+    circ.setAttribute('class','node-circle');circ.setAttribute('r',r);
+    circ.setAttribute('fill',isAtk?'rgba(255,45,74,0.15)':'rgba(0,229,255,0.08)');
+    circ.setAttribute('stroke',n.c);circ.setAttribute('stroke-width',n.status==='critical'?'2':'1.5');
+    g.appendChild(circ);
+    // icon
+    var txt=document.createElementNS('http://www.w3.org/2000/svg','text');
+    txt.setAttribute('text-anchor','middle');txt.setAttribute('dy','.35em');txt.setAttribute('font-size','14');
+    txt.textContent=n.icon;g.appendChild(txt);
+    // label
+    var lbl=document.createElementNS('http://www.w3.org/2000/svg','text');
+    lbl.setAttribute('class','node-label');lbl.setAttribute('text-anchor','middle');lbl.setAttribute('dy','36');
+    lbl.setAttribute('fill',n.c);lbl.textContent=n.label;g.appendChild(lbl);
+    svg.appendChild(g);
+  });
+  // animate data packets
+  var pkts=0;
+  function spawnPacket(){
+    var e=EDGES[Math.floor(Math.random()*EDGES.length)];
+    var f=NODES.find(function(n){return n.id===e.from;});
+    var t=NODES.find(function(n){return n.id===e.to;});
+    if(!f||!t)return;
+    var c=document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('r','4');c.setAttribute('fill',e.attack?'#ff2d4a':'#00e5ff');
+    c.setAttribute('opacity','0');
+    var dur=(1+Math.random()*1.5).toFixed(2);
+    c.innerHTML='<animateMotion dur="'+dur+'s" repeatCount="1" fill="freeze"><mpath/></animateMotion>';
+    var anim=document.createElementNS('http://www.w3.org/2000/svg','animateMotion');
+    anim.setAttribute('dur',dur+'s');anim.setAttribute('repeatCount','1');
+    anim.setAttribute('from',f.x+','+f.y);anim.setAttribute('to',t.x+','+t.y);
+    anim.setAttribute('calcMode','linear');
+    var opAnim=document.createElementNS('http://www.w3.org/2000/svg','animate');
+    opAnim.setAttribute('attributeName','opacity');opAnim.setAttribute('values','0;1;1;0');opAnim.setAttribute('dur',dur+'s');opAnim.setAttribute('repeatCount','1');opAnim.setAttribute('fill','freeze');
+    c.appendChild(anim);c.appendChild(opAnim);svg.appendChild(c);
+    pkts++;var pc=document.getElementById('packetCount');if(pc)pc.textContent=pkts+' حزمة/ث';
+    setTimeout(function(){if(c.parentNode)c.parentNode.removeChild(c);},dur*1000+100);
+  }
+  setInterval(spawnPacket,400);
+  // net stats
+  var ns=document.getElementById('netStats');
+  [{l:'عقد نشطة',v:'10/10',c:'#00ff9d'},{l:'اتصالات',v:'14 مسار',c:'#00e5ff'},{l:'عقد حرجة',v:'3',c:'#ff2d4a'},{l:'حزم/ث',v:'2,847',c:'#ffb700'}].forEach(function(s){
+    var d=document.createElement('div');d.style.cssText='display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(0,229,255,.06);font-size:12px;';
+    d.innerHTML='<span style="color:var(--txt2)">'+s.l+'</span><span style="font-family:\'JetBrains Mono\',monospace;font-weight:700;color:'+s.c+'">'+s.v+'</span>';
+    ns.appendChild(d);
+  });
+  var nsd=document.getElementById('nodeStatus');
+  NODES.filter(function(n){return n.status!=='ok';}).forEach(function(n){
+    var d=document.createElement('div');d.style.cssText='display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:11.5px;';
+    d.innerHTML='<span>'+n.icon+'</span><span style="flex:1">'+n.label+'</span><span style="color:'+n.c+';font-size:10px;font-weight:700">'+( n.status==='critical'?'⚠ حرج':'⚡ مرتفع')+'</span>';
+    nsd.appendChild(d);
+  });
+})();
+
+/* ─── World SVG Map ─── */
+(function(){
+  var svg=document.getElementById('worldSVG');
+  var tooltip=document.getElementById('mapTooltip');
+  // simplified world continents as path approximations
+  var LANDS=[
+    {d:'M 50,140 Q 80,120 120,130 Q 160,140 180,160 Q 160,190 130,200 Q 100,195 80,185 Q 55,170 50,140Z',c:'rgba(0,100,60,.4)',label:'أمريكا الشمالية'},
+    {d:'M 140,200 Q 160,195 175,210 Q 170,240 155,250 Q 140,245 135,230 Q 130,215 140,200Z',c:'rgba(0,80,50,.4)',label:'أمريكا الجنوبية'},
+    {d:'M 360,110 Q 420,100 470,120 Q 490,140 480,180 Q 440,200 400,195 Q 365,185 350,160 Q 345,135 360,110Z',c:'rgba(30,80,150,.4)',label:'أوروبا'},
+    {d:'M 440,130 Q 520,110 590,130 Q 640,160 650,200 Q 620,240 570,250 Q 510,255 470,230 Q 440,200 435,165 Q 430,145 440,130Z',c:'rgba(40,60,120,.4)',label:'آسيا'},
+    {d:'M 380,190 Q 430,185 460,210 Q 470,250 450,290 Q 420,310 390,300 Q 365,275 360,245 Q 355,215 380,190Z',c:'rgba(100,60,0,.4)',label:'أفريقيا'},
+    {d:'M 640,290 Q 700,280 730,300 Q 740,330 720,350 Q 690,360 660,345 Q 640,325 640,290Z',c:'rgba(0,60,100,.4)',label:'أستراليا'}
+  ];
+  LANDS.forEach(function(l){
+    var p=document.createElementNS('http://www.w3.org/2000/svg','path');
+    p.setAttribute('d',l.d);p.setAttribute('fill',l.c);p.setAttribute('stroke','rgba(0,229,255,0.15)');p.setAttribute('stroke-width','0.5');
+    svg.appendChild(p);
+  });
+  // grid lines
+  for(var i=0;i<9;i++){
+    var gl=document.createElementNS('http://www.w3.org/2000/svg','line');
+    gl.setAttribute('x1','0');gl.setAttribute('y1',i*50);gl.setAttribute('x2','900');gl.setAttribute('y2',i*50);
+    gl.setAttribute('stroke','rgba(0,229,255,0.04)');svg.appendChild(gl);
+    var gv=document.createElementNS('http://www.w3.org/2000/svg','line');
+    gv.setAttribute('x1',i*100);gv.setAttribute('y1','0');gv.setAttribute('x2',i*100);gv.setAttribute('y2','440');
+    gv.setAttribute('stroke','rgba(0,229,255,0.04)');svg.appendChild(gv);
+  }
+  var ATTACK_POINTS=[
+    {x:490,y:155,label:'روسيا — APT-28',type:'source',sev:'critical',detail:'APT-28 Fancy Bear — 34 هجوم نشط — يستهدف: حكومة + انتخابات',c:'#ff2d4a'},
+    {x:550,y:145,label:'الصين — APT-41',type:'source',sev:'critical',detail:'APT-41 Winnti — 51 هجوم نشط — يستهدف: SCADA + دفاع + صناعة',c:'#ff2d4a'},
+    {x:460,y:170,label:'إيران — APT-33',type:'source',sev:'high',detail:'APT-33 Elfin — 18 هجوم — يستهدف: نفط وغاز + طيران',c:'#ffb700'},
+    {x:390,y:185,label:'مصر — هدف',type:'target',sev:'critical',detail:'3 هجمات حرجة نشطة — SCADA + AD + Banking',c:'#00e5ff'},
+    {x:420,y:175,label:'السعودية — هدف',type:'target',sev:'high',detail:'APT-33 Shamoon variant — ARAMCO محمية',c:'#00e5ff'},
+    {x:410,y:168,label:'الإمارات — هدف',type:'target',sev:'medium',detail:'Spear-phishing campaign — محتجزة',c:'#00ff9d'},
+    {x:380,y:140,label:'أوروبا — هدف',type:'target',sev:'high',detail:'APT-28 — استهداف بنية حيوية',c:'#ffb700'}
+  ];
+  ATTACK_POINTS.forEach(function(p){
+    var g=document.createElementNS('http://www.w3.org/2000/svg','g');g.setAttribute('class','attack-point');
+    // attack rings
+    for(var r=0;r<3;r++){
+      var ring=document.createElementNS('http://www.w3.org/2000/svg','circle');
+      ring.setAttribute('cx',p.x);ring.setAttribute('cy',p.y);ring.setAttribute('r','8');
+      ring.setAttribute('fill','none');ring.setAttribute('stroke',p.c);ring.setAttribute('stroke-width','1.5');ring.setAttribute('opacity','0');
+      ring.innerHTML='<animate attributeName="r" from="6" to="24" dur="2s" begin="'+(r*0.66)+'s" repeatCount="indefinite"/><animate attributeName="opacity" from=".7" to="0" dur="2s" begin="'+(r*0.66)+'s" repeatCount="indefinite"/>';
+      svg.appendChild(ring);
+    }
+    // center dot
+    var dot=document.createElementNS('http://www.w3.org/2000/svg','circle');
+    dot.setAttribute('cx',p.x);dot.setAttribute('cy',p.y);dot.setAttribute('r',p.sev==='critical'?6:4);
+    dot.setAttribute('fill',p.c);dot.setAttribute('opacity','.9');
+    dot.setAttribute('filter','drop-shadow(0 0 4px '+p.c+')');
+    svg.appendChild(dot);
+    // attack lines from sources to targets
+    if(p.type==='source'){
+      var targets=ATTACK_POINTS.filter(function(t){return t.type==='target';});
+      targets.forEach(function(t){
+        var line=document.createElementNS('http://www.w3.org/2000/svg','line');
+        line.setAttribute('x1',p.x);line.setAttribute('y1',p.y);line.setAttribute('x2',t.x);line.setAttribute('y2',t.y);
+        line.setAttribute('stroke',p.c);line.setAttribute('stroke-width','.8');line.setAttribute('stroke-dasharray','4,6');line.setAttribute('opacity','.35');
+        line.innerHTML='<animate attributeName="stroke-dashoffset" from="0" to="-40" dur="2s" repeatCount="indefinite"/>';
+        svg.appendChild(line);
+      });
+    }
+    // tooltip
+    dot.addEventListener('mouseover',function(e){
+      tooltip.style.display='block';tooltip.style.right=(900-p.x+10)+'px';tooltip.style.top=(p.y-20)+'px';
+      tooltip.innerHTML='<div style="font-family:\'Oswald\',sans-serif;font-size:11px;color:'+p.c+';margin-bottom:5px;">'+p.label+'</div>'+
+        '<div style="font-size:11.5px;color:var(--txt2);line-height:1.8;">'+p.detail+'</div>'+
+        '<div style="font-size:10px;color:var(--txt3);margin-top:5px;">النوع: '+(p.type==='source'?'مصدر هجوم':'هدف مستهدف')+'</div>';
+    });
+    dot.addEventListener('mouseout',function(){tooltip.style.display='none';});
+  });
+  // stats panels
+  var as=document.getElementById('attackSources');
+  [{l:'الصين — APT-41',v:'51',c:'#ff2d4a'},{l:'روسيا — APT-28',v:'34',c:'#ff6b7a'},{l:'إيران — APT-33',v:'18',c:'#ffb700'},{l:'كوريا ش. — Lazarus',v:'12',c:'#a855f7'}].forEach(function(s){
+    var d=document.createElement('div');d.style.cssText='display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px;';
+    d.innerHTML='<span style="color:var(--txt2)">'+s.l+'</span><span style="font-family:\'JetBrains Mono\',monospace;font-weight:700;color:'+s.c+'">'+s.v+'</span>';
+    as.appendChild(d);
+  });
+  var at=document.getElementById('attackTargets');
+  [{l:'مصر — SCADA/GOV',v:'3',c:'#ff2d4a'},{l:'السعودية — ARAMCO',v:'2',c:'#ffb700'},{l:'الإمارات — GOV',v:'1',c:'#00e5ff'},{l:'أوروبا — INFRA',v:'4',c:'#ffb700'}].forEach(function(s){
+    var d=document.createElement('div');d.style.cssText='display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px;';
+    d.innerHTML='<span style="color:var(--txt2)">'+s.l+'</span><span style="font-family:\'JetBrains Mono\',monospace;font-weight:700;color:'+s.c+'">'+s.v+'</span>';
+    at.appendChild(d);
+  });
+  var ap=document.getElementById('attackProtocols');
+  [{l:'C2 Beaconing HTTPS',v:'34%',c:'#ff2d4a'},{l:'SMB Lateral Move',v:'22%',c:'#ffb700'},{l:'DNS Tunneling',v:'18%',c:'#a855f7'},{l:'ICS/SCADA DNP3',v:'15%',c:'#ff6b7a'},{l:'Phishing + Macro',v:'11%',c:'#00e5ff'}].forEach(function(s){
+    var d=document.createElement('div');d.style.cssText='margin-bottom:8px;';
+    d.innerHTML='<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;"><span style="color:var(--txt2)">'+s.l+'</span><span style="color:'+s.c+';font-weight:700;font-family:\'JetBrains Mono\',monospace;">'+s.v+'</span></div>'+
+      '<div class="pbar"><i style="width:'+s.v+';background:'+s.c+'"></i></div>';
+    ap.appendChild(d);
+  });
+})();
+
+/* ─── Response Center ─── */
+(function(){
+  var pg=document.getElementById('responsePlaybooks');
+  PLAYBOOKS.forEach(function(p){
+    var d=document.createElement('div');d.className='playbook-card';
+    d.innerHTML='<div class="pb-icon">'+p.icon+'</div><div class="pb-name">'+p.name+'</div><div class="pb-desc">'+p.desc+'</div><div class="pb-steps" style="color:var(--cyan2)">'+p.steps+'</div>';
+    pg.appendChild(d);
+  });
+  // team
+  var tg=document.getElementById('teamGrid');
+  TEAM.forEach(function(m){
+    var d=document.createElement('div');d.className='team-member';
+    d.innerHTML='<div class="tm-avatar" style="--tm-c:'+m.sc+'">'+m.icon+'</div>'+
+      '<div class="tm-name">'+m.name+'</div>'+
+      '<div class="tm-role">'+m.role+'</div>'+
+      '<div class="tm-status"><div class="tm-dot" style="background:'+m.sc+'"></div><span style="color:'+m.sc+';font-size:9px;">'+m.status+'</span></div>';
+    tg.appendChild(d);
+  });
+  // live log
+  var LOG_EVENTS=[
+    {c:'#ff2d4a',m:'[CRITICAL] APT-41 C2 Beacon رُصد على 193.27.14.8:443'},
+    {c:'#00ff9d',m:'[INFO] EDR عزل WS-CORP-047 تلقائياً'},
+    {c:'#ffb700',m:'[HIGH] Golden Ticket مُكتشف على DC-PROD-01'},
+    {c:'#a855f7',m:'[INFO] YARA rule cobalt_strike_v4 — MATCH — PID 4872'},
+    {c:'#00e5ff',m:'[INFO] Memory Dump جارٍ: WinPmem — 15.9GB'},
+    {c:'#ff2d4a',m:'[CRITICAL] SCADA anomaly: IEC 61850 GOOSE flood'},
+    {c:'#00ff9d',m:'[INFO] OT VLAN معزول — Manual override مفعَّل'},
+    {c:'#ffb700',m:'[HIGH] DNS Tunneling: dga-c2.xyz — 847% spike'},
+    {c:'#00ff9d',m:'[INFO] Sinkhole DNS: dga-c2.xyz → 127.0.0.1'},
+    {c:'#ff2d4a',m:'[CRITICAL] LockBit 3.0 رُصد — تشفير 2.3TB/hr'}
+  ];
+  var logWrap=document.getElementById('liveLog');var logIdx=0;var logCount=0;
+  function addLog(){
+    if(logIdx>=LOG_EVENTS.length)logIdx=0;
+    var e=LOG_EVENTS[logIdx++];logCount++;
+    var n=new Date();var ts=n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0')+':'+n.getSeconds().toString().padStart(2,'0');
+    var d=document.createElement('div');d.className='log-line';
+    d.innerHTML='<span class="log-time">'+ts+'</span><span style="color:'+e.c+'">'+e.m+'</span>';
+    logWrap.insertBefore(d,logWrap.firstChild);
+    if(logWrap.children.length>20)logWrap.removeChild(logWrap.lastChild);
+    var lc=document.getElementById('logCount');if(lc)lc.textContent=logCount+' حدث';
+  }
+  for(var i=0;i<6;i++) addLog();
+  setInterval(addLog,2800);
+  // sim attack
+  var simBtn=document.getElementById('simAttackBtn');var simProg=document.getElementById('simProgress');var simRunning=false;
+  simBtn.addEventListener('click',function(){
+    if(simRunning)return;simRunning=true;simBtn.textContent='⏳ جارٍ...';
+    var steps=[
+      {t:'[T+0s]   استغلال CVE-2024-3400 على FW-PROD-01 — CVSS 10.0',c:'#ff2d4a'},
+      {t:'[T+15s]  SMBv3 انتشار أفقي: 3 workstations مصابة',c:'#ffb700'},
+      {t:'[T+32s]  Process Hollowing في svchost.exe PID 4872',c:'#ff2d4a'},
+      {t:'[T+48s]  Cobalt Strike C2 → 193.27.14.8:443 ESTABLISHED',c:'#ff2d4a'},
+      {t:'[T+65s]  SIEM: تنبيه CRITICAL — فريق الاستجابة مُنبَّه',c:'#a855f7'},
+      {t:'[T+72s]  Zero Trust: عزل VLAN — SMB Signing مفعَّل',c:'#00ff9d'},
+      {t:'[T+90s]  YARA Hunt: Cobalt Strike MATCH — 12 host',c:'#ffb700'},
+      {t:'[T+120s] Memory Forensics: جارٍ — Volatility3 active',c:'#00e5ff'},
+      {t:'[T+180s] ✅ الهجوم محتجز — سجل الأدلة مكتمل',c:'#00ff9d'}
+    ];
+    simProg.innerHTML='';var si=0;
+    function nextStep(){
+      if(si>=steps.length){simRunning=false;simBtn.textContent='▶ تشغيل';return;}
+      var s=steps[si++];
+      simProg.innerHTML+='<div style="color:'+s.c+';margin-bottom:3px;">'+s.t+'</div>';
+      simProg.parentElement.scrollTop=simProg.parentElement.scrollHeight;
+      setTimeout(nextStep,si<5?1200:900);
+    }
+    nextStep();
+  });
+})();
+
+/* ─── Nav Tabs ─── */
+document.querySelectorAll('.nav-tab').forEach(function(t){
+  t.addEventListener('click',function(){
+    document.querySelectorAll('.nav-tab').forEach(function(x){x.classList.remove('active');});
+    document.querySelectorAll('.tab-pane').forEach(function(x){x.classList.remove('active');});
+    t.classList.add('active');
+    var pane=document.getElementById('tab-'+t.getAttribute('data-tab'));
+    if(pane)pane.classList.add('active');
+  });
+});
+
+/* ─── Live counter animations ─── */
+setInterval(function(){
+  var el=document.querySelector('.hm-val');if(el){
+    var v=parseInt(el.textContent.replace(/,/g,''));
+    v+=Math.floor(Math.random()*3)+1;
+    el.textContent=v.toLocaleString();
+  }
+},3000);
+</script>
+</body>
+</html>
